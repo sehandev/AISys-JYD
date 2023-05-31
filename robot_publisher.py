@@ -17,6 +17,13 @@ from sensor_msgs.msg import Image, PointCloud2
 from std_msgs.msg import Int16MultiArray, Float32MultiArray
 
 
+torch.manual_seed(0)
+torch.cuda.manual_seed(0)
+torch.cuda.manual_seed_all(0)
+np.random.seed(0)
+cudnn.benchmark = False
+cudnn.deterministic = True
+random.seed(0)
 class Yolov7:
     def __init__(self):
         # for hsr topic
@@ -29,6 +36,7 @@ class Yolov7:
         rgb_topic = '/camera/color/image_raw'
         self._rgb_sub = rospy.Subscriber(rgb_topic, Image, self._rgb_callback)
         self.yolo_pub = rospy.Publisher('/snu/yolo', Int16MultiArray, queue_size=10)
+        self.yolo_feature_pub = rospy.Publisher('/snu/yolo_feature', Float32MultiArray, queue_size=10)
 
         self.yolo_img_pub = rospy.Publisher('/snu/yolo_img', Image, queue_size=10)
         self.ready()
@@ -96,10 +104,14 @@ class Yolov7:
                 x = m(x)  # run
                 y.append(x if m.i in model.save else None)  # save output
 
+            yolo_feature_msg = Float32MultiArray()
+            yolo_feature_msg.data = x.numpy().reshape(-1)
+            self.yolo_feature_pub.publish(yolo_feature_msg)
             """[Server side]"""
             y = [x]  # outputs
             # y.append(x if m.i in model.save else None)
-            print('x',x.shape)
+            print('x',x.shape) # torch.Size([1, 32, 192, 320])
+
 
             # print('y',y[0].shape)
             for idx, m in enumerate(model.model[1:]):
