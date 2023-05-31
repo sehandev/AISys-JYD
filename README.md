@@ -23,3 +23,8 @@ test env
 - ubuntu 20.04, python3.8, 
 - move weight file in weights/yolov7-tiny.pt
 - link : [`yolov7-tiny.pt`](https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7-tiny.pt)
+
+roslaunch
+``` shell
+roslaunch realsense2_camera rs_camera.launch
+```
