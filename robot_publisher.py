@@ -136,11 +136,11 @@ class Yolov7:
 
 def get_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default='weights/yolov7-tiny.pt', help='model.pt path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default='weights/yolov7x.pt', help='model.pt path(s)')
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.5, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
-    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--device', default='cpu', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --class 0, or --class 0 2 3')
     parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
     parser.add_argument('--augment', action='store_true', help='augmented inference')
@@ -153,16 +153,14 @@ if __name__ == '__main__':
     rospy.init_node('aisys_robot', anonymous=True)
     yolov7_controller = Yolov7()
     image_resolution = (480, 640, 3)
-    r = rospy.Rate(5)
+    r = rospy.Rate(40)
     with torch.no_grad():
         while not rospy.is_shutdown():
             bbox_list, bag_bbox_list, img = yolov7_controller.detect() # bag bbox list is the version added confidence scores
-            if bbox_list is None or yolov7_controller.pc is None:
+            if bbox_list is None:
                 continue
-            _pc = yolov7_controller.pc.reshape(480, 640)
-            pc_np = np.array(_pc.tolist())[:, :, :3]
             yolov7_controller.yolo_publish(bbox_list)
-            yolov7_controller.yolo_with_conf_publish(bag_bbox_list)
+            # yolov7_controller.yolo_with_conf_publish(bag_bbox_list)
             yolov7_controller.yolo_img_publish(img)
             r.sleep()
 
