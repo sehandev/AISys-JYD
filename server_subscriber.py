@@ -45,8 +45,8 @@ class Yolov7:
 
     def _yolo_feature_callback(self, msg):
         if self.device is not None:
-            self.x = torch.from_numpy(np.array(msg.data).reshape(1, 32, 192, 320)).to(self.device).float()
-
+            x = torch.from_numpy(np.array(msg.data).reshape(1, 32, 240, 320)).to(self.device).float()
+            self.x = x.half() if self.half else x.float()  # uint8 to fp16/32
 
     def ready(self):
         weights, imgsz = opt.weights, opt.img_size
@@ -178,7 +178,7 @@ if __name__ == '__main__':
     import time
     opt = get_opt()
     print(opt)
-    draw_img = True
+    draw_img = False
     rospy.init_node('aisys_robot_sub', anonymous=True)
     yolov7_controller = Yolov7(draw_img)
     r = rospy.Rate(40)

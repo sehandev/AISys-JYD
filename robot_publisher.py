@@ -111,7 +111,7 @@ class Yolov7:
         #     """[Server side]"""
         #     y = [x]  # outputs
         #     # y.append(x if m.i in model.save else None)
-        #     # print('x',x.shape) # torch.Size([1, 32, 192, 320])
+            print('x',x.shape) # torch.Size([1, 32, 192, 320])
         #
         #
         #     # print('y',y[0].shape)

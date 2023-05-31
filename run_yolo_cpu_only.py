@@ -140,7 +140,7 @@ def get_opt():
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.5, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
-    parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--device', default='cpu', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --class 0, or --class 0 2 3')
     parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
     parser.add_argument('--augment', action='store_true', help='augmented inference')
@@ -157,11 +157,13 @@ if __name__ == '__main__':
     r = rospy.Rate(40)
     with torch.no_grad():
         while not rospy.is_shutdown():
+            s_t = time.time()
             bbox_list, bag_bbox_list, img = yolov7_controller.detect() # bag bbox list is the version added confidence scores
             if bbox_list is None:
                 continue
             yolov7_controller.yolo_publish(bbox_list)
             # yolov7_controller.yolo_with_conf_publish(bag_bbox_list)
             yolov7_controller.yolo_img_publish(img)
+            print(time.time() - s_t)
             r.sleep()
 
