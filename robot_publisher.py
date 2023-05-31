@@ -53,7 +53,7 @@ class Yolov7:
         imgsz = check_img_size(imgsz, s=stride)  # check img_size
 
 
-        model = TracedModel(model, device, opt.img_size)
+        # model = TracedModel(model, device, opt.img_size)
 
         if half:
             model.half()  # to FP16
@@ -71,10 +71,11 @@ class Yolov7:
             model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
 
         self.device, self.model, self.colors, self.names = device, model, colors, names
+        print('self.model', self.model)
 
     def detect(self):
         if self.rgb_img is None:
-            return None
+            return None, None, None
         img, im0 = self.preprocess_img(self.rgb_img)
         device, model, colors, names = self.device, self.model, self.colors, self.names
 
@@ -84,11 +85,11 @@ class Yolov7:
         if img.ndimension() == 3:
             img = img.unsqueeze(0)
         x = img
-        y, dt = [], []  # outputs
+        y = []  # outputs
         # Inference
         with torch.no_grad():   # Calculating gradients would cause a GPU memory leak
             """[Robot side]"""
-            for m in model.model[:len(model.model) // 2]:
+            for m in model.model[:1]:
                 # print(m)
                 if m.f != -1:  # if not from previous layer
                     x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
@@ -96,8 +97,12 @@ class Yolov7:
                 y.append(x if m.i in model.save else None)  # save output
 
             """[Server side]"""
-            for m in model.model[len(model.model) // 2:]:
-                # print(m)
+            y = [x]  # outputs
+            # y.append(x if m.i in model.save else None)
+            print('x',x.shape)
+
+            # print('y',y[0].shape)
+            for idx, m in enumerate(model.model[1:]):
                 if m.f != -1:  # if not from previous layer
                     x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
                 if isinstance(x, list):
@@ -108,7 +113,7 @@ class Yolov7:
                 y.append(x if m.i in model.save else None)  # save output
 
         # Apply NMS
-        pred = x
+        pred = x[0]
         pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)[0]
         bbox_list = []
         bbox_with_conf_list = []
