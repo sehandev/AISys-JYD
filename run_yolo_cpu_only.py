@@ -83,32 +83,13 @@ class Yolov7:
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
         if img.ndimension() == 3:
             img = img.unsqueeze(0)
-        x = img
-        y, dt = [], []  # outputs
+
+
         # Inference
         with torch.no_grad():   # Calculating gradients would cause a GPU memory leak
-            """[Robot side]"""
-            for m in model.model[:len(model.model) // 2]:
-                # print(m)
-                if m.f != -1:  # if not from previous layer
-                    x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
-                x = m(x)  # run
-                y.append(x if m.i in model.save else None)  # save output
-
-            """[Server side]"""
-            for m in model.model[len(model.model) // 2:]:
-                # print(m)
-                if m.f != -1:  # if not from previous layer
-                    x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
-                if isinstance(x, list):
-                    x = [t.to(device) for t in x]
-                else:
-                    x = x.to(device)
-                x = m(x)  # run
-                y.append(x if m.i in model.save else None)  # save output
+            pred = model(img, augment=opt.augment)[0]
 
         # Apply NMS
-        pred = x
         pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)[0]
         bbox_list = []
         bbox_with_conf_list = []
