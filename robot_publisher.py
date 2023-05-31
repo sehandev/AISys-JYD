@@ -107,50 +107,51 @@ class Yolov7:
             yolo_feature_msg = Float32MultiArray()
             yolo_feature_msg.data = x.numpy().reshape(-1)
             self.yolo_feature_pub.publish(yolo_feature_msg)
-            """[Server side]"""
-            y = [x]  # outputs
-            # y.append(x if m.i in model.save else None)
-            print('x',x.shape) # torch.Size([1, 32, 192, 320])
-
-
-            # print('y',y[0].shape)
-            for idx, m in enumerate(model.model[1:]):
-                if m.f != -1:  # if not from previous layer
-                    x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
-                if isinstance(x, list):
-                    x = [t.to(device) for t in x]
-                else:
-                    x = x.to(device)
-                x = m(x)  # run
-                y.append(x if m.i in model.save else None)  # save output
-
-        # Apply NMS
-        pred = x[0]
-        pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)[0]
-        bbox_list = []
-        bbox_with_conf_list = []
-
-        # Process detections
-        if len(pred):
-            # Rescale boxes from img_size to im0 size
-            pred[:, :4] = scale_coords(img.shape[2:], pred[:, :4], im0.shape).round()
-            # Write results
-            for *xyxy, conf, cls in reversed(pred):
-                label = f'{names[int(cls)]} {conf:.2f}'
-                c1, c2 = (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3]))
-                cent_x, cent_y = (c2[0] + c1[0]) // 2, (c2[1] + c1[1]) // 2
-                width = c2[0] - c1[0]
-                height = c2[1] - c1[1]
-
-                plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
-                bbox_list.append([cent_x, cent_y, width, height, int(cls)])
-                bbox_with_conf_list.append([cent_x, cent_y, width, height, int(cls), int(conf * 100)]) #conf: bbox score
-        # show result
-        view_img = True
-        if view_img:
-            cv2.imshow('hsr_vision', im0)
-            cv2.waitKey(1)  # 1 millisecond
-        return bbox_list, bbox_with_conf_list, im0
+            print('msg published')
+        #     """[Server side]"""
+        #     y = [x]  # outputs
+        #     # y.append(x if m.i in model.save else None)
+        #     # print('x',x.shape) # torch.Size([1, 32, 192, 320])
+        #
+        #
+        #     # print('y',y[0].shape)
+        #     for idx, m in enumerate(model.model[1:]):
+        #         if m.f != -1:  # if not from previous layer
+        #             x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
+        #         if isinstance(x, list):
+        #             x = [t.to(device) for t in x]
+        #         else:
+        #             x = x.to(device)
+        #         x = m(x)  # run
+        #         y.append(x if m.i in model.save else None)  # save output
+        #
+        # # Apply NMS
+        # pred = x[0]
+        # pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)[0]
+        # bbox_list = []
+        # bbox_with_conf_list = []
+        #
+        # # Process detections
+        # if len(pred):
+        #     # Rescale boxes from img_size to im0 size
+        #     pred[:, :4] = scale_coords(img.shape[2:], pred[:, :4], im0.shape).round()
+        #     # Write results
+        #     for *xyxy, conf, cls in reversed(pred):
+        #         label = f'{names[int(cls)]} {conf:.2f}'
+        #         c1, c2 = (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3]))
+        #         cent_x, cent_y = (c2[0] + c1[0]) // 2, (c2[1] + c1[1]) // 2
+        #         width = c2[0] - c1[0]
+        #         height = c2[1] - c1[1]
+        #
+        #         plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
+        #         bbox_list.append([cent_x, cent_y, width, height, int(cls)])
+        #         bbox_with_conf_list.append([cent_x, cent_y, width, height, int(cls), int(conf * 100)]) #conf: bbox score
+        # # show result
+        # view_img = True
+        # if view_img:
+        #     cv2.imshow('hsr_vision', im0)
+        #     cv2.waitKey(1)  # 1 millisecond
+        # return bbox_list, bbox_with_conf_list, im0
 
     def preprocess_img(self, img):
         img0 = img.copy()
@@ -160,15 +161,6 @@ class Yolov7:
         img = np.ascontiguousarray(img)
         return img, img0
 
-    def yolo_publish(self, bbox_list):
-        coord_list_msg = Int16MultiArray()
-        coord_list_msg.data = [i for coord in bbox_list for i in coord]
-        self.yolo_pub.publish(coord_list_msg)
-
-
-    def yolo_img_publish(self, img):
-        yolo_img_msg = self.bridge.cv2_to_imgmsg(img, encoding='bgr8')
-        self.yolo_img_pub.publish(yolo_img_msg)
 
 def get_opt():
     parser = argparse.ArgumentParser()
@@ -188,15 +180,9 @@ if __name__ == '__main__':
     print(opt)
     rospy.init_node('aisys_robot', anonymous=True)
     yolov7_controller = Yolov7()
-    image_resolution = (480, 640, 3)
     r = rospy.Rate(40)
     with torch.no_grad():
         while not rospy.is_shutdown():
-            bbox_list, bag_bbox_list, img = yolov7_controller.detect() # bag bbox list is the version added confidence scores
-            if bbox_list is None:
-                continue
-            yolov7_controller.yolo_publish(bbox_list)
-            # yolov7_controller.yolo_with_conf_publish(bag_bbox_list)
-            yolov7_controller.yolo_img_publish(img)
+            yolov7_controller.detect() # bag bbox list is the version added confidence scores
             r.sleep()
 
