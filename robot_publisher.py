@@ -37,7 +37,7 @@ class Yolov7:
         self._rgb_sub = rospy.Subscriber(rgb_topic, Image, self._rgb_callback)
         self.yolo_pub = rospy.Publisher('/snu/yolo', Int16MultiArray, queue_size=10)
         self.yolo_feature_pub = rospy.Publisher('/snu/yolo_feature', Float32MultiArray, queue_size=10)
-
+        self.rgb_img_pub = rospy.Publisher('/snu/rgb_img', Image, queue_size=10)
         self.yolo_img_pub = rospy.Publisher('/snu/yolo_img', Image, queue_size=10)
         self.ready()
 
@@ -81,10 +81,11 @@ class Yolov7:
         self.device, self.model, self.colors, self.names = device, model, colors, names
         print('self.model', self.model)
 
-    def detect(self):
-        if self.rgb_img is None:
+    def detect(self, img):
+        if img is None:
+            print('here')
             return None, None, None
-        img, im0 = self.preprocess_img(self.rgb_img)
+        img, im0 = self.preprocess_img(img)
         device, model, colors, names = self.device, self.model, self.colors, self.names
 
         img = torch.from_numpy(img).to(device)
@@ -161,10 +162,16 @@ class Yolov7:
         img = np.ascontiguousarray(img)
         return img, img0
 
+    def rgb_img_publish(self, img):
+        if img is None:
+            return
+        rgb_img_msg = self.bridge.cv2_to_imgmsg(img, encoding='bgr8')
+        self.rgb_img_pub.publish(rgb_img_msg)
+
 
 def get_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default='weights/yolov7-tiny.pt', help='model.pt path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default='weights/yolov7.pt', help='model.pt path(s)')
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.5, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
@@ -176,6 +183,7 @@ def get_opt():
     return opt
 
 if __name__ == '__main__':
+    import copy, time
     opt = get_opt()
     print(opt)
     rospy.init_node('aisys_robot', anonymous=True)
@@ -183,6 +191,9 @@ if __name__ == '__main__':
     r = rospy.Rate(40)
     with torch.no_grad():
         while not rospy.is_shutdown():
-            yolov7_controller.detect() # bag bbox list is the version added confidence scores
+            s_t = time.time()
+            img = copy.deepcopy(yolov7_controller.rgb_img)
+            yolov7_controller.detect(img) # bag bbox list is the version added confidence scores
+            yolov7_controller.rgb_img_publish(img)
+            print(time.time()-s_t)
             r.sleep()
-

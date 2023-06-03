@@ -32,7 +32,7 @@ class Yolov7:
         self.bridge = CvBridge()
         self._yolo_feature_sub = rospy.Subscriber('/snu/yolo_feature', Float32MultiArray, self._yolo_feature_callback)
         if draw_img:
-            rgb_topic = '/camera/color/image_raw'
+            rgb_topic = '/snu/rgb_img'
             self._rgb_sub = rospy.Subscriber(rgb_topic, Image, self._rgb_callback)
 
         self.device = None
@@ -45,7 +45,7 @@ class Yolov7:
 
     def _yolo_feature_callback(self, msg):
         if self.device is not None:
-            x = torch.from_numpy(np.array(msg.data).reshape(1, 32, 240, 320)).to(self.device).float()
+            x = torch.from_numpy(np.array(msg.data).reshape(1, 32, 384, 640)).to(self.device).float()
             self.x = x.half() if self.half else x.float()  # uint8 to fp16/32
 
     def ready(self):
@@ -163,7 +163,7 @@ class Yolov7:
 
 def get_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default='weights/yolov7-tiny.pt', help='model.pt path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default='weights/yolov7.pt', help='model.pt path(s)')
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.5, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
@@ -178,7 +178,7 @@ if __name__ == '__main__':
     import time
     opt = get_opt()
     print(opt)
-    draw_img = False
+    draw_img = True
     rospy.init_node('aisys_robot_sub', anonymous=True)
     yolov7_controller = Yolov7(draw_img)
     r = rospy.Rate(40)
@@ -189,6 +189,3 @@ if __name__ == '__main__':
             print('bbox_list', bbox_list)
             r.sleep()
             print('cost time', time.time() - start_time)
-
-
-
