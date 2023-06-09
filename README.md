@@ -28,3 +28,8 @@ roslaunch
 ``` shell
 roslaunch realsense2_camera rs_camera.launch
 ```
+
+ip editing
+``` shell
+sudo vim /etc/hosts
+```
