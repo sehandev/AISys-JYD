@@ -89,15 +89,16 @@ class Yolov7:
         if self.x is None:
             return None, None, None
         x_y = np.array(self.x)
-        x = x_y[:256*60*80].reshape(1,256,60,80)
-        _y = x_y[256*60*80:].reshape(1, 256, 120, 160)
+        # x = x_y[:256*60*80].reshape(1,256,60,80)
+        x = x_y.reshape(1, 128, 184, 320) # 1, 128, 120, 160
+        # _y = x_y[256*60*80:].reshape(1, 256, 120, 160)
         x = torch.from_numpy(x).to(self.device).float()
         x = x.half() if self.half else x.float()  # uint8 to fp16/32
 
-        _y = torch.from_numpy(_y).to(self.device).float()
-        _y = _y.half() if self.half else _y.float()
-        y = [None] * 13
-        y[-2] = _y
+        # _y = torch.from_numpy(_y).to(self.device).float()
+        # _y = _y.half() if self.half else _y.float()
+        # y = [None] * 13
+        # y[-2] = _y
         # for i, _y in enumerate(y):
         #     print(i, _y)
         # Inference
@@ -107,9 +108,9 @@ class Yolov7:
             """[Server side]"""
             # y.append(x if m.i in model.save else None)
             # print('x',x.shape) # torch.Size([1, 32, 192, 320])
-            y = [x]
+            y = [None, None, None, x]
             # print('y',y[0].shape)
-            for idx, m in enumerate(model.model[13:]):
+            for idx, m in enumerate(model.model[4:]):
                 if m.f != -1:  # if not from previous layer
                     x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
                 if isinstance(x, list):
@@ -157,9 +158,9 @@ class Yolov7:
                 bbox_list.append([cent_x, cent_y, width, height, int(cls)])
             return bbox_list
 
-    def preprocess_img(self, img):
+    def preprocess_img(self, img, width=1280):
         img0 = img.copy()
-        img = letterbox(img, 640, stride=32)[0]
+        img = letterbox(img, width, stride=32)[0]
         # Convert
         img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
         img = np.ascontiguousarray(img)
@@ -173,7 +174,7 @@ class Yolov7:
 def get_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', nargs='+', type=str, default='weights/yolov7.pt', help='model.pt path(s)')
-    parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
+    parser.add_argument('--img-size', type=int, default=1280, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.5, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
     parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
@@ -190,11 +191,15 @@ if __name__ == '__main__':
     draw_img = True
     rospy.init_node('aisys_robot_sub', anonymous=True)
     yolov7_controller = Yolov7(draw_img)
-    r = rospy.Rate(40)
     with torch.no_grad():
         while not rospy.is_shutdown():
-            start_time = time.time()
-            bbox_list = yolov7_controller.detect() # bag bbox list is the version added confidence scores
-            print('bbox_list', bbox_list)
-            r.sleep()
-            print('cost time', time.time() - start_time)
+            total_t = 0
+            frames = 5
+            for i in range(frames):
+                start_time = time.time()
+                bbox_list = yolov7_controller.detect() # bag bbox list is the version added confidence scores
+                # print('bbox_list', bbox_list)
+                e_t = time.time()
+                total_t += e_t - start_time
+                # print('cost time', time.time() - start_time)
+            print('fps', total_t / frames)
