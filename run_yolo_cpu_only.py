@@ -75,7 +75,9 @@ class Yolov7:
     def detect(self):
         if self.rgb_img is None:
             return None, None, None
+        # print('self.rgb_img', self.rgb_img.shape)
         img, im0 = self.preprocess_img(self.rgb_img)
+        # print('img', img.shape)
         device, model, colors, names = self.device, self.model, self.colors, self.names
 
         img = torch.from_numpy(img).to(device)
@@ -116,9 +118,9 @@ class Yolov7:
             cv2.waitKey(1)  # 1 millisecond
         return bbox_list, bbox_with_conf_list, im0
 
-    def preprocess_img(self, img):
+    def preprocess_img(self, img, width = 1280):
         img0 = img.copy()
-        img = letterbox(img, 640, stride=32)[0]
+        img = letterbox(img, width, stride=32)[0]
         # Convert
         img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
         img = np.ascontiguousarray(img)
@@ -153,17 +155,21 @@ if __name__ == '__main__':
     print(opt)
     rospy.init_node('aisys_robot_cpu_only', anonymous=True)
     yolov7_controller = Yolov7()
-    image_resolution = (480, 640, 3)
-    r = rospy.Rate(40)
+    image_resolution = (720, 1280, 3)
     with torch.no_grad():
         while not rospy.is_shutdown():
-            s_t = time.time()
-            bbox_list, bag_bbox_list, img = yolov7_controller.detect() # bag bbox list is the version added confidence scores
-            if bbox_list is None:
-                continue
-            yolov7_controller.yolo_publish(bbox_list)
-            # yolov7_controller.yolo_with_conf_publish(bag_bbox_list)
-            yolov7_controller.yolo_img_publish(img)
-            print(time.time() - s_t)
-            r.sleep()
+            total_t = 0
+            frames = 5
+            for i in range(frames):
+                s_t = time.time()
+                bbox_list, bag_bbox_list, img = yolov7_controller.detect() # bag bbox list is the version added confidence scores
+                if bbox_list is None:
+                    continue
+                yolov7_controller.yolo_publish(bbox_list)
+                # yolov7_controller.yolo_with_conf_publish(bag_bbox_list)
+                yolov7_controller.yolo_img_publish(img)
+                e_t = time.time()
+                total_t += e_t - s_t
+            print('fps', total_t / frames)
+
 

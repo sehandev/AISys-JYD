@@ -98,27 +98,28 @@ class Yolov7:
         # Inference
         with torch.no_grad():   # Calculating gradients would cause a GPU memory leak
             """[Robot side]"""
-            for m in model.model[:13]:
+            for idx, m in enumerate(model.model[:4]):
                 # print(m)
                 if m.f != -1:  # if not from previous layer
                     x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
                 x = m(x)  # run
+                # print(idx, True if m.i in model.save else None)
                 y.append(x if m.i in model.save else None)  # save output
 
             yolo_feature_msg = Float32MultiArray()
             x_np = x.numpy().reshape(-1)
-            y_np = y[-2].numpy().reshape(-1)
-            print('x_np', x_np.shape)
-            print('y_np', y_np.shape)
-            feature = np.concatenate((x_np, y_np))
-            yolo_feature_msg.data = feature
+            # y_np = y[-2].numpy().reshape(-1)
+            # print('x_np', x_np.shape)
+            # print('y_np', y_np.shape)
+            # feature = np.concatenate((x_np, y_np))
+            yolo_feature_msg.data = x_np
             self.yolo_feature_pub.publish(yolo_feature_msg)
-            print('msg published')
+            # print('msg published')
         #     """[Server side]"""
         #     y = [x]  # outputs
         #     # y.append(x if m.i in model.save else None)
-            print('x',x.shape) # torch.Size([1, 32, 192, 320])
-            print('y', y[-2].numpy().shape)
+        #     print('x',x.shape) # torch.Size([1, 32, 192, 320])
+            # print('y', y[-2].numpy().shape)
         #
             # print('y',y[0].shape)
             debug = False
@@ -179,9 +180,9 @@ class Yolov7:
                 cv2.waitKey(1)  # 1 millisecond
         # return bbox_list, bbox_with_conf_list, im0
 
-    def preprocess_img(self, img):
+    def preprocess_img(self, img, width=1280):
         img0 = img.copy()
-        img = letterbox(img, 640, stride=32)[0]
+        img = letterbox(img, width, stride=32)[0]
         # Convert
         img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
         img = np.ascontiguousarray(img)
@@ -197,7 +198,7 @@ class Yolov7:
 def get_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', nargs='+', type=str, default='weights/yolov7.pt', help='model.pt path(s)')
-    parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
+    parser.add_argument('--img-size', type=int, default=1280, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.5, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
     parser.add_argument('--device', default='cpu', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
@@ -213,12 +214,16 @@ if __name__ == '__main__':
     print(opt)
     rospy.init_node('aisys_robot', anonymous=True)
     yolov7_controller = Yolov7()
-    r = rospy.Rate(40)
     with torch.no_grad():
         while not rospy.is_shutdown():
-            s_t = time.time()
-            img = copy.deepcopy(yolov7_controller.rgb_img)
-            yolov7_controller.detect(img) # bag bbox list is the version added confidence scores
-            yolov7_controller.rgb_img_publish(img)
-            print(time.time()-s_t)
-            r.sleep()
+            total_t = 0
+            frames = 5
+            for i in range(frames):
+                s_t = time.time()
+                img = copy.deepcopy(yolov7_controller.rgb_img)
+                yolov7_controller.detect(img) # bag bbox list is the version added confidence scores
+                yolov7_controller.rgb_img_publish(img)
+                e_t = time.time()
+                total_t += e_t-s_t
+                # print('cost time', e_t-s_t)
+            print('fps', total_t / frames)
