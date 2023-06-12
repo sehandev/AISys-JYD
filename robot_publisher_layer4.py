@@ -84,7 +84,7 @@ class Yolov7:
     def detect(self, img):
         if img is None:
             print('here')
-            return None, None, None
+            return None
         img, im0 = self.preprocess_img(img)
         device, model, colors, names = self.device, self.model, self.colors, self.names
 
@@ -106,14 +106,12 @@ class Yolov7:
                 # print(idx, True if m.i in model.save else None)
                 y.append(x if m.i in model.save else None)  # save output
 
-            yolo_feature_msg = Float32MultiArray()
             x_np = x.numpy().reshape(-1)
             # y_np = y[-2].numpy().reshape(-1)
             # print('x_np', x_np.shape)
             # print('y_np', y_np.shape)
             # feature = np.concatenate((x_np, y_np))
-            yolo_feature_msg.data = x_np
-            self.yolo_feature_pub.publish(yolo_feature_msg)
+            return x_np
             # print('msg published')
         #     """[Server side]"""
         #     y = [x]  # outputs
@@ -188,11 +186,15 @@ class Yolov7:
         img = np.ascontiguousarray(img)
         return img, img0
 
-    def rgb_img_publish(self, img):
+    def topic_publish(self, img, x_np):
         if img is None:
             return
         rgb_img_msg = self.bridge.cv2_to_imgmsg(img, encoding='bgr8')
         self.rgb_img_pub.publish(rgb_img_msg)
+
+        yolo_feature_msg = Float32MultiArray()
+        yolo_feature_msg.data = x_np
+        self.yolo_feature_pub.publish(yolo_feature_msg)
 
 
 def get_opt():
@@ -221,8 +223,8 @@ if __name__ == '__main__':
             for i in range(frames):
                 s_t = time.time()
                 img = copy.deepcopy(yolov7_controller.rgb_img)
-                yolov7_controller.detect(img) # bag bbox list is the version added confidence scores
-                yolov7_controller.rgb_img_publish(img)
+                x_np = yolov7_controller.detect(img) # bag bbox list is the version added confidence scores
+                yolov7_controller.topic_publish(img, x_np)
                 e_t = time.time()
                 total_t += e_t-s_t
                 # print('cost time', e_t-s_t)
