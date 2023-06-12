@@ -88,13 +88,22 @@ class Yolov7:
         device, model, colors, names = self.device, self.model, self.colors, self.names
         if self.x is None:
             return None, None, None
-        x_y = np.array(self.x)
+        if self.draw_img:
+            img, im0 = self.preprocess_img(self.rgb_img)
+            img = torch.from_numpy(img).to(device)
+            img = img.half() if self.half else img.float()  # uint8 to fp16/32
+            img /= 255.0  # 0 - 255 to 0.0 - 1.0
+            if img.ndimension() == 3:
+                img = img.unsqueeze(0)
+        # _s_t = time.time()
+        x = torch.tensor(self.x).to(self.device).half()
+        # print(time.time() - _s_t)
         # x = x_y[:256*60*80].reshape(1,256,60,80)
-        x = x_y.reshape(1, 128, 184, 320) # 1, 128, 120, 160
-        # _y = x_y[256*60*80:].reshape(1, 256, 120, 160)
-        x = torch.from_numpy(x).to(self.device).float()
-        x = x.half() if self.half else x.float()  # uint8 to fp16/32
 
+        x = x.reshape(1, 128, 184, 320) # 1, 128, 120, 160
+        # _y = x_y[256*60*80:].reshape(1, 256, 120, 160)
+        # x = torch.from_numpy(x).to(self.device).half()
+        # x = x.half() if self.half else x.float()  # uint8 to fp16/32
         # _y = torch.from_numpy(_y).to(self.device).float()
         # _y = _y.half() if self.half else _y.float()
         # y = [None] * 13
@@ -125,12 +134,12 @@ class Yolov7:
         pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)[0]
         bbox_list = []
         if self.draw_img:
-            img, im0 = self.preprocess_img(self.rgb_img)
-            img = torch.from_numpy(img).to(device)
-            img = img.half() if self.half else img.float()  # uint8 to fp16/32
-            img /= 255.0  # 0 - 255 to 0.0 - 1.0
-            if img.ndimension() == 3:
-                img = img.unsqueeze(0)
+            # img, im0 = self.preprocess_img(self.rgb_img)
+            # img = torch.from_numpy(img).to(device)
+            # img = img.half() if self.half else img.float()  # uint8 to fp16/32
+            # img /= 255.0  # 0 - 255 to 0.0 - 1.0
+            # if img.ndimension() == 3:
+            #     img = img.unsqueeze(0)
             # Process detections
             if len(pred):
                 # Rescale boxes from img_size to im0 size
