@@ -197,7 +197,7 @@ if __name__ == '__main__':
     import time
     opt = get_opt()
     print(opt)
-    draw_img = True
+    draw_img = False
     rospy.init_node('aisys_robot_sub', anonymous=True)
     yolov7_controller = Yolov7(draw_img)
     with torch.no_grad():
@@ -207,8 +207,8 @@ if __name__ == '__main__':
             for i in range(frames):
                 start_time = time.time()
                 bbox_list = yolov7_controller.detect() # bag bbox list is the version added confidence scores
-                # print('bbox_list', bbox_list)
+                print('bbox_list', bbox_list)
                 e_t = time.time()
                 total_t += e_t - start_time
                 # print('cost time', time.time() - start_time)
-            print('fps', total_t / frames)
+            print('AVG SEC PER FRAME', total_t / frames)
