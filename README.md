@@ -23,6 +23,11 @@ sudo vim /etc/hosts
 ```
 - add ip address and domain name
 
+4. intall requirements
+``` shell
+pip install -r requirements
+```
+
 # Running our code
 1. robot side running
 ``` shell
