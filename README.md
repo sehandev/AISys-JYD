@@ -2,7 +2,7 @@
 Team 정영돈
 
 ## Test env
-- ubuntu 20.04, python3.8, 
+- ubuntu 20.04, python3.8, ROS noetic
 - camera : intel realsense-d435
 - 같은 wifi에 두 pc 연결
 
